@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>군 식단 조회</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 2rem;
+      background: #e9ecef;
+      color: #212529;
+    }
+    h1 {
+      color: #0056b3;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .input-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+    }
+    input[type="date"], select, button {
+      font-size: 1rem;
+      padding: 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      border: none;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #result {
+      margin-top: 2rem;
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      min-height: 50px; /* 결과를 표시할 최소 높이 설정 */
+    }
+    #result h3 {
+      margin-top: 0;
+      color: #007bff;
+    }
+    #result p {
+      white-space: pre-wrap; /* 줄바꿈이 포함된 식단을 표시하기 위해 */
+    }
+  </style>
+</head>
+<body>
+  <h1>군 식단 조회 페이지</h1>
+
+  <div class="input-group">
+    <label for="date">날짜 선택:</label>
+    <input type="date" id="date" />
+  </div>
+
+  <div class="input-group">
+    <label for="mealTime">식사 시간:</label>
+    <select id="mealTime">
+      <option value="아침">아침</option>
+      <option value="점심">점심</option> <!-- '조치'를 '점심'으로 수정 -->
+      <option value="저녁">저녁</option>
+    </select>
+  </div>
+
+  <button onclick="fetchMealData()">조회하기</button>
+
+  <div id="result">
+    <!-- 조회 결과가 여기에 표시됩니다. -->
+  </div>
+
+  <script>
+    const serviceKey = '3637313631343830343134363032303634'; 
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = ('0' + (date.getMonth() + 1)).slice(-2);
+      const day = ('0' + date.getDate()).slice(-2);
+      return `${year}${month}${day}`;
+    }
+
+    async function fetchMealData() {
+      const dateInput = document.getElementById('date').value;
+      const mealTime = document.getElementById('mealTime').value;
+      const resultDiv = document.getElementById('result');
+
+      // 결과 영역 초기화
+      resultDiv.innerHTML = '<p>조회 중...</p>';
+
+      if (!dateInput) {
+        alert('날짜를 선택해주세요.');
+        resultDiv.innerHTML = '<p>날짜를 선택한 후 조회 버튼을 눌러주세요.</p>';
+        return;
+      }
+      
+      if (serviceKey === '여기에_본인의_서비스_키를_입력하세요') {
+           alert('서비스 키를 입력해주세요.');
+           resultDiv.innerHTML = '<p>서비스 키가 설정되지 않았습니다.</p>';
+           return;
+      }
+
+
+      const formattedDate = formatDate(dateInput);
+      // Data.go.kr API URL. 실제 API 문서에 따라 URL이나 파라미터 이름이 다를 수 있습니다.
+      const url = `https://apis.data.go.kr/1230000/mealServiceDietInfo/getMealServiceDietInfo?serviceKey=${serviceKey}&numOfRows=1&pageNo=1&MLSV_YMD=${formattedDate}&MMEAL_SC_NM=${encodeURIComponent(mealTime)}&type=json`; // 파라미터 이름 수정 및 인코딩 적용
+
+      try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            // HTTP 상태 코드가 200 Ok가 아닐 경우 오류 처리
+            const errorText = await response.text();
+            throw new Error(`API 호출 실패: ${response.status} ${response.statusText}\n응답 본문: ${errorText}`);
+        }
+
+        const data = await response.json();
+
+        // API 응답 구조에 따라 item 경로가 달라질 수 있습니다.
+        // Data.go.kr API 문서를 참고하여 정확한 경로를 확인하세요.
+        // 예시 경로: data.response?.body?.items?.item?.[0]
+        // 다른 API의 경우 구조가 다를 수 있습니다.
+        
+        // 예시: data.mealServiceDietInfo[1].row 배열 안에 식단 정보가 있는 경우
+        const mealInfoArray = data.mealServiceDietInfo?.[1]?.row;
+
+        let item = null;
+        if (mealInfoArray && mealInfoArray.length > 0) {
+             // 필터링이 필요하다면 여기에 추가. 현재 예시에서는 첫 번째 항목 사용.
+             // 특정 날짜와 식사 시간의 데이터만 가져왔다고 가정
+             item = mealInfoArray[0];
+        }
+
+
+        if (item && item.DDISH_NM) { // DDISH_NM은 예시 파라미터 이름입니다. 실제 API 문서 확인 필요.
+          resultDiv.innerHTML = `<h3>${item.MLSV_YMD} ${item.MMEAL_SC_NM}</h3><p>${item.DDISH_NM}</p>`; // 예시 파라미터 이름 사용
+        } else {
+          resultDiv.innerHTML = '<p>해당 날짜 및 식사 시간에 대한 식단 정보가 없습니다.</p>';
+        }
+
+      } catch (error) {
+        console.error('데이터 가져오는 중 오류 발생:', error);
+        resultDiv.innerHTML = `<p>식단 정보를 가져오는 중 오류가 발생했습니다: ${error.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
